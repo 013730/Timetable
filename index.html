@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#000000">
+  <meta name="description" content="A personal weekly timetable with editable activities, expandable details, and day-based completion tracking.">
+  <title>Timetable v1.0</title>
+  <style>
+* { box-sizing: border-box; }
+:root {
+  color-scheme: dark;
+  --bg: #000;
+  --surface: #101010;
+  --surface-2: #171717;
+  --line: #292929;
+  --blue: #78b7ff;
+  --blue-strong: #3997ff;
+  --text: #fff;
+  --muted: #a6a6a6;
+  --soft: #d0d0d0;
+}
+html { background: var(--bg); }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+button, input, textarea { font: inherit; }
+button { cursor: pointer; }
+.app { width: min(100%, 820px); margin: 0 auto; padding: 28px 20px 44px; }
+.topbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 26px; }
+.eyebrow { margin: 0 0 5px; color: var(--blue); font-size: .72rem; font-weight: 800; letter-spacing: .16em; }
+h1 { margin: 0; font-size: clamp(2rem, 6vw, 2.65rem); letter-spacing: -.055em; line-height: 1.08; }
+.version { display: inline-block; vertical-align: middle; margin-left: 7px; color: var(--blue); font-size: .78rem; letter-spacing: 0; font-weight: 700; }
+.subhead { color: var(--muted); margin: 10px 0 0; font-size: .9rem; }
+.header-icon { display: grid; place-items: center; width: 48px; height: 48px; border: 1px solid #25364b; border-radius: 15px; color: var(--blue); background: #080d14; font-size: 1.8rem; }
+.week-strip { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 7px; margin-bottom: 26px; }
+.day-button { min-width: 0; padding: 10px 2px 8px; border: 1px solid transparent; border-radius: 12px; color: #d0d0d0; background: var(--surface-2); display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.day-button .day-name { font-size: .78rem; font-weight: 700; }
+.day-button .day-date { color: #8e8e8e; font-size: .7rem; }
+.day-button .lock { font-size: .75rem; color: var(--blue); line-height: 1; }
+.day-button.selected { color: #000; background: var(--blue); border-color: var(--blue); }
+.day-button.selected .day-date, .day-button.selected .lock { color: #10243a; }
+.day-button:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+.day-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 13px; }
+.day-heading h2 { margin: 0; font-size: 1.4rem; letter-spacing: -.025em; }
+.day-heading p { margin: 2px 0 0; color: var(--muted); font-size: .85rem; }
+.status { flex: none; border: 1px solid #25415e; border-radius: 999px; padding: 5px 9px; color: var(--blue); font-size: .68rem; font-weight: 800; letter-spacing: .08em; }
+.activity-list { display: grid; gap: 9px; }
+.activity { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); padding: 14px 14px 13px; }
+.activity-top { display: flex; align-items: center; gap: 10px; }
+.activity-main { min-width: 0; flex: 1; }
+.time-line { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; margin-bottom: 3px; }
+.time-range { color: var(--blue); font-size: clamp(1rem, 3.6vw, 1.2rem); font-weight: 850; letter-spacing: -.025em; line-height: 1.25; }
+.duration { color: var(--muted); font-size: .78rem; font-weight: 600; white-space: nowrap; }
+.activity-name { margin: 0; font-size: 1rem; font-weight: 700; overflow-wrap: anywhere; }
+.activity.done .activity-name { color: #858585; text-decoration: line-through; }
+.icon-button { width: 34px; height: 34px; flex: none; display: grid; place-items: center; padding: 0; border: 1px solid #303030; border-radius: 10px; background: #161616; color: #d7d7d7; font-size: 1rem; }
+.icon-button:disabled { opacity: .3; cursor: not-allowed; }
+.icon-button.tick { color: var(--blue); font-size: 1.2rem; }
+.details { margin: 12px 0 0; padding-top: 11px; border-top: 1px solid #292929; color: var(--soft); font-size: .9rem; white-space: pre-wrap; }
+.footnote { margin: 18px 2px 0; color: var(--muted); font-size: .78rem; }
+.blue-dot { display: inline-block; width: 7px; height: 7px; margin: 0 5px 1px 0; border-radius: 50%; background: var(--blue); }
+.dialog { width: min(calc(100% - 28px), 420px); padding: 22px; border: 1px solid #303b49; border-radius: 18px; background: #0b0b0b; color: var(--text); box-shadow: 0 20px 80px #000b; }
+.dialog::backdrop { background: #000b; backdrop-filter: blur(3px); }
+.dialog h3 { margin: 0 0 8px; font-size: 1.25rem; }
+.dialog p:not(.eyebrow) { color: var(--soft); }
+.dialog label { display: block; margin: 13px 0 5px; color: #d7d7d7; font-size: .85rem; font-weight: 650; }
+.dialog input, .dialog textarea { width: 100%; padding: 10px 11px; border: 1px solid #383838; border-radius: 10px; color: var(--text); background: #151515; }
+.dialog-actions { display: flex; flex-direction: column; gap: 9px; margin-top: 18px; }
+.primary-button, .secondary-button { width: 100%; border-radius: 10px; padding: 11px 14px; font-weight: 750; }
+.primary-button { border: 1px solid var(--blue); background: var(--blue); color: #00101f; }
+.secondary-button { border: 1px solid #383838; background: #171717; color: #eee; }
+@media (min-width: 560px) {
+  .app { padding: 38px 28px 52px; }
+  .activity { padding: 16px 18px; }
+  .dialog-actions { flex-direction: row; }
+}
+@media (max-width: 380px) {
+  .app { padding: 22px 12px 34px; }
+  .week-strip { gap: 4px; }
+  .day-button { border-radius: 9px; }
+  .activity { padding: 12px 10px; }
+  .icon-button { width: 31px; height: 31px; }
+}
+
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">PERSONAL PLANNER</p>
+        <h1>TIMETABLE <span class="version">v1.0</span></h1>
+        <p class="subhead" id="week-label"></p>
+      </div>
+      <div class="header-icon" aria-hidden="true">▦</div>
+    </header>
+
+    <section class="week-strip" aria-label="Choose a day" id="day-selector"></section>
+
+    <section class="day-heading">
+      <div>
+        <h2 id="selected-day-title">Tuesday</h2>
+        <p id="selected-day-subtitle">Your schedule</p>
+      </div>
+      <span id="day-status" class="status">TODAY</span>
+    </section>
+
+    <section id="activity-list" class="activity-list" aria-label="Daily activities"></section>
+    <p class="footnote"><span class="blue-dot"></span> Select an activity to view provided details. Past days are locked and view-only.</p>
+  </main>
+
+  <dialog id="confirm-dialog" class="dialog">
+    <form id="confirm-form">
+      <p class="eyebrow">CONFIRM CHANGE</p>
+      <h3 id="confirm-title">Mark as complete?</h3>
+      <p id="confirm-description"></p>
+      <div class="dialog-actions">
+        <button type="button" id="confirm-action" class="primary-button">Confirm</button>
+        <button type="button" id="cancel-confirm" class="secondary-button">Keep as is</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="edit-dialog" class="dialog">
+    <form id="edit-form">
+      <p class="eyebrow">EDIT ACTIVITY</p>
+      <h3>Edit activity</h3>
+      <label for="edit-name">Activity name</label>
+      <input id="edit-name" name="name" required maxlength="100">
+      <label for="edit-start">Start time</label>
+      <input id="edit-start" name="start" required placeholder="4:20 PM">
+      <label for="edit-end">End time</label>
+      <input id="edit-end" name="end" required placeholder="6:30 PM">
+      <label for="edit-details">Details (optional)</label>
+      <textarea id="edit-details" name="details" rows="3" placeholder="Leave blank if there are no details."></textarea>
+      <div class="dialog-actions">
+        <button type="submit" class="primary-button">Save changes</button>
+        <button type="button" id="cancel-edit" class="secondary-button">Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script>
+(() => {
+  "use strict";
+
+  const $ = (selector) => document.querySelector(selector);
+  const dayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  const shortDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const breakfast = "Wake-up push-ups; ½ cup oats with milk, 2 eggs, 1 banana and 1 handful of blueberries.";
+  const sleepDetails = "Push-ups, brush teeth, then shower. Aim to be asleep by 11:00 pm.";
+  const standardGetReady = "Put water in the freezer, pack 1 protein bar and 1 banana, brush teeth, then ice face.";
+  const commonMorning = [
+    ["6:30 AM", "7:00 AM", "Wake Up & Breakfast", breakfast],
+    ["7:00 AM", "7:20 AM", "Get Ready", standardGetReady],
+    ["7:20 AM", "8:10 AM", "Travel to School", ""],
+    ["8:15 AM", "3:05 PM", "School", ""],
+    ["3:05 PM", "4:15 PM", "Travel Home", "Try to sleep on the bus for 20 minutes."]
+  ];
+
+  const schedules = {
+    Mon: [
+      ...commonMorning,
+      ["4:15 PM", "4:30 PM", "Shower", ""],
+      ["4:30 PM", "6:00 PM", "Study", ""],
+      ["6:00 PM", "7:00 PM", "Dinner", ""],
+      ["7:00 PM", "8:30 PM", "Study", ""],
+      ["8:30 PM", "9:10 PM", "Free Time", ""],
+      ["9:10 PM", "11:00 PM", "Shower & Sleep", sleepDetails]
+    ],
+    Tue: [
+      ...commonMorning,
+      ["4:20 PM", "6:30 PM", "Gym", ""],
+      ["6:30 PM", "7:30 PM", "Dinner", ""],
+      ["7:30 PM", "8:40 PM", "Study", ""],
+      ["8:40 PM", "9:10 PM", "Help Pack Up", ""],
+      ["9:10 PM", "11:00 PM", "Shower & Sleep", sleepDetails]
+    ],
+    Wed: [
+      ["6:30 AM", "7:00 AM", "Wake Up & Breakfast", breakfast],
+      ["7:00 AM", "7:20 AM", "Get Ready", "Brush teeth, then ice face. No shower or food packing."],
+      ["7:20 AM", "8:10 AM", "Travel to School", ""],
+      ["8:15 AM", "12:30 PM", "School", ""],
+      ["12:30 PM", "1:15 PM", "Travel Home", ""],
+      ["1:15 PM", "1:30 PM", "Post-Gym Meal", "1 protein bar, 1 banana and 1 protein shake."],
+      ["1:30 PM", "3:30 PM", "Gym", ""],
+      ["3:30 PM", "5:30 PM", "Study", ""],
+      ["5:30 PM", "6:45 PM", "Dinner", ""],
+      ["6:45 PM", "8:00 PM", "Study", ""],
+      ["8:00 PM", "8:40 PM", "Free Time", ""],
+      ["8:40 PM", "9:10 PM", "Help Pack Up", ""],
+      ["9:10 PM", "11:00 PM", "Shower & Sleep", sleepDetails]
+    ],
+    Thu: [
+      ...commonMorning,
+      ["4:20 PM", "6:30 PM", "Gym", ""],
+      ["6:30 PM", "7:30 PM", "Dinner", ""],
+      ["7:30 PM", "8:40 PM", "Study", ""],
+      ["8:40 PM", "9:10 PM", "Help Pack Up", ""],
+      ["9:10 PM", "11:00 PM", "Shower & Sleep", sleepDetails]
+    ],
+    Fri: [
+      ...commonMorning,
+      ["4:15 PM", "5:45 PM", "Dinner & Rest", ""],
+      ["6:00 PM", "10:00 PM", "Work", ""],
+      ["10:00 PM", "11:00 PM", "Shower & Sleep", sleepDetails]
+    ],
+    Sat: [
+      ["9:30 AM", "10:00 AM", "Wake Up & Breakfast", breakfast],
+      ["10:00 AM", "11:00 AM", "Get Ready", "Brush teeth, shower, then ice face."],
+      ["11:00 AM", "3:00 PM", "Work", ""],
+      ["3:00 PM", "3:45 PM", "Nap", ""],
+      ["3:45 PM", "4:45 PM", "Free Time", ""],
+      ["4:45 PM", "5:45 PM", "Dinner", ""],
+      ["5:45 PM", "6:00 PM", "Free Time", ""],
+      ["6:00 PM", "10:00 PM", "Work", ""],
+      ["10:00 PM", "11:00 PM", "Shower & Sleep", sleepDetails]
+    ],
+    Sun: [
+      ["7:45 AM", "8:15 AM", "Wake Up & Breakfast", breakfast],
+      ["8:15 AM", "9:00 AM", "Get Ready", "Brush teeth, shower, then ice face."],
+      ["9:00 AM", "1:00 PM", "Work", ""],
+      ["1:00 PM", "1:45 PM", "Nap", ""],
+      ["1:45 PM", "3:00 PM", "Study", ""],
+      ["3:00 PM", "3:45 PM", "Free Time", ""],
+      ["3:45 PM", "4:45 PM", "Dinner", ""],
+      ["4:45 PM", "5:00 PM", "Free Time", ""],
+      ["5:00 PM", "9:00 PM", "Work", ""],
+      ["9:00 PM", "11:00 PM", "Shower & Sleep", sleepDetails]
+    ]
+  };
+
+  let selectedDay = "Tue";
+  let pendingCompletion = null;
+  let editingIndex = null;
+  let expandedKey = null;
+  const completed = new Set();
+  const selector = $("#day-selector");
+  const activityList = $("#activity-list");
+  const confirmDialog = $("#confirm-dialog");
+  const editDialog = $("#edit-dialog");
+
+  function mondayOf(date) {
+    const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const weekday = (d.getDay() + 6) % 7;
+    d.setDate(d.getDate() - weekday);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+  const weekStart = mondayOf(new Date());
+  const dateForDay = (index) => {
+    const d = new Date(weekStart);
+    d.setDate(d.getDate() + index);
+    return d;
+  };
+  function dateLabel(d) {
+    return d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  }
+  function isPast(index) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return dateForDay(index) < today;
+  }
+  function isToday(index) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return dateForDay(index).getTime() === today.getTime();
+  }
+  function weekLabel() {
+    const end = new Date(weekStart);
+    end.setDate(end.getDate() + 6);
+    $("#week-label").textContent = `${dateLabel(weekStart)} – ${dateLabel(end)} · THIS WEEK`;
+  }
+  function parseTime(value) {
+    const match = value.match(/^(\d{1,2}):(\d{2})\s(AM|PM)$/i);
+    if (!match) return 0;
+    let hour = Number(match[1]) % 12;
+    if (match[3].toUpperCase() === "PM") hour += 12;
+    return hour * 60 + Number(match[2]);
+  }
+  function duration(start, end) {
+    let minutes = parseTime(end) - parseTime(start);
+    if (minutes < 0) minutes += 1440;
+    if (minutes % 60 === 0) return `${minutes / 60} hr${minutes / 60 === 1 ? "" : "s"}`;
+    const hours = Math.floor(minutes / 60);
+    const rest = minutes % 60;
+    return hours ? `${hours} hr ${rest} min` : `${rest} min`;
+  }
+  function keyFor(day, index) {
+    return `${day}-${index}`;
+  }
+  function renderDaySelector() {
+    selector.innerHTML = "";
+    shortDays.forEach((day, index) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `day-button${selectedDay === day ? " selected" : ""}`;
+      button.setAttribute("aria-pressed", String(selectedDay === day));
+      const name = document.createElement("span");
+      name.className = "day-name";
+      name.textContent = day;
+      const date = document.createElement("span");
+      date.className = "day-date";
+      date.textContent = dateLabel(dateForDay(index));
+      button.append(name, date);
+      if (isPast(index)) {
+        const lock = document.createElement("span");
+        lock.className = "lock";
+        lock.textContent = "🔒";
+        lock.setAttribute("aria-label", "Past day, view only");
+        button.append(lock);
+      }
+      button.addEventListener("click", () => {
+        selectedDay = day;
+        expandedKey = null;
+        render();
+      });
+      selector.append(button);
+    });
+  }
+  function renderActivities() {
+    activityList.innerHTML = "";
+    const dayIndex = shortDays.indexOf(selectedDay);
+    const locked = isPast(dayIndex);
+    const schedule = schedules[selectedDay];
+    schedule.forEach((item, index) => {
+      const [start, end, name, details] = item;
+      const key = keyFor(selectedDay, index);
+      const card = document.createElement("article");
+      card.className = `activity${completed.has(key) ? " done" : ""}`;
+
+      const top = document.createElement("div");
+      top.className = "activity-top";
+      const main = document.createElement("div");
+      main.className = "activity-main";
+      const timeLine = document.createElement("div");
+      timeLine.className = "time-line";
+      const time = document.createElement("span");
+      time.className = "time-range";
+      time.textContent = `${start} – ${end}`;
+      const length = document.createElement("span");
+      length.className = "duration";
+      length.textContent = duration(start, end);
+      timeLine.append(time, length);
+      const title = document.createElement("p");
+      title.className = "activity-name";
+      title.textContent = name;
+      main.append(timeLine, title);
+      top.append(main);
+
+      if (details) {
+        const expand = document.createElement("button");
+        expand.type = "button";
+        expand.className = "icon-button";
+        expand.textContent = expandedKey === key ? "⌃" : "⌄";
+        expand.setAttribute("aria-label", `${expandedKey === key ? "Hide" : "Show"} details for ${name}`);
+        expand.setAttribute("aria-expanded", String(expandedKey === key));
+        expand.addEventListener("click", () => {
+          expandedKey = expandedKey === key ? null : key;
+          renderActivities();
+        });
+        top.append(expand);
+      }
+
+      const tick = document.createElement("button");
+      tick.type = "button";
+      tick.className = "icon-button tick";
+      tick.disabled = locked;
+      tick.textContent = completed.has(key) ? "✓" : "○";
+      tick.setAttribute("aria-label", completed.has(key) ? `Undo completion for ${name}` : `Mark ${name} complete`);
+      tick.addEventListener("click", () => openConfirmation(key, name));
+      top.append(tick);
+
+      const edit = document.createElement("button");
+      edit.type = "button";
+      edit.className = "icon-button";
+      edit.disabled = locked;
+      edit.textContent = "✎";
+      edit.setAttribute("aria-label", `Edit ${name}`);
+      edit.addEventListener("click", () => openEdit(index));
+      top.append(edit);
+      card.append(top);
+
+      if (details && expandedKey === key) {
+        const detail = document.createElement("p");
+        detail.className = "details";
+        detail.textContent = details;
+        card.append(detail);
+      }
+      activityList.append(card);
+    });
+  }
+  function renderHeading() {
+    const index = shortDays.indexOf(selectedDay);
+    $("#selected-day-title").textContent = dayNames[index];
+    $("#selected-day-subtitle").textContent = selectedDay === "Wed" ? "Early school finish" : selectedDay === "Sat" ? "Weekend · Work-focused" : selectedDay === "Sun" ? "Weekend · Work & study" : "Your daily schedule";
+    const status = $("#day-status");
+    if (isPast(index)) status.textContent = "🔒 VIEW ONLY";
+    else if (isToday(index)) status.textContent = "TODAY";
+    else status.textContent = "UPCOMING";
+  }
+  function render() {
+    weekLabel();
+    renderDaySelector();
+    renderHeading();
+    renderActivities();
+  }
+  function openConfirmation(key, name) {
+    pendingCompletion = { key, name, undo: completed.has(key) };
+    $("#confirm-title").textContent = pendingCompletion.undo ? "Undo completion?" : "Mark as complete?";
+    $("#confirm-description").textContent = `${name} — ${pendingCompletion.undo ? "Remove the completed tick?" : "Confirm that you finished this activity."}`;
+    confirmDialog.showModal();
+  }
+  function finishConfirmation(confirmed) {
+    if (confirmed && pendingCompletion) {
+      if (pendingCompletion.undo) completed.delete(pendingCompletion.key);
+      else completed.add(pendingCompletion.key);
+    }
+    pendingCompletion = null;
+    confirmDialog.close();
+    render();
+  }
+  $("#confirm-action").addEventListener("click", () => finishConfirmation(true));
+  $("#cancel-confirm").addEventListener("click", () => finishConfirmation(false));
+  function openEdit(index) {
+    editingIndex = index;
+    const item = schedules[selectedDay][index];
+    $("#edit-name").value = item[2];
+    $("#edit-start").value = item[0];
+    $("#edit-end").value = item[1];
+    $("#edit-details").value = item[3] || "";
+    editDialog.showModal();
+  }
+  $("#edit-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const index = shortDays.indexOf(selectedDay);
+    if (isPast(index) || editingIndex === null) return;
+    const form = new FormData(event.currentTarget);
+    const item = schedules[selectedDay][editingIndex];
+    item[2] = String(form.get("name")).trim();
+    item[0] = String(form.get("start")).trim();
+    item[1] = String(form.get("end")).trim();
+    item[3] = String(form.get("details")).trim();
+    editingIndex = null;
+    editDialog.close();
+    renderActivities();
+  });
+  $("#cancel-edit").addEventListener("click", () => {
+    editingIndex = null;
+    editDialog.close();
+  });
+
+  render();
+})();
+
+  </script>
+</body>
+</html>
